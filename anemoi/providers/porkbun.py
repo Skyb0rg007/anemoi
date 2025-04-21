@@ -40,23 +40,26 @@ class PorkbunProvider(Provider):
         data.pop("status", None)
         return data
 
-    def __get_records(self, subdomain) -> List[str]:
-        domain = ".".join(subdomain.split(".")[-2:])
-        recs = []
-        try:
-            res = self._post(f"dns/retrieve/{domain}")
-            raw_records = res.get("records", [])
-            targets = [x for x in raw_records if x.get("name", "") == subdomain]
-            if len(targets) != 0:
-                recs = targets
-        except Exception as e:
-            anlog.error(e)
-        return recs
+    # Returns the root domain corresponding to the given subdomain,
+    # and all records associated with the subdomain
+    def __get_records(self, subdomain) -> Tuple[str, List[str]]:
+        parts = subdomain.split(".")
+        while len(parts) > 1:
+            domain = ".".join(parts)
+            try:
+                res = self._post(f"dns/retrieve/{domain}")
+                raw_records = res.get("records", [])
+                targets = [x for x in raw_records if x.get("name", "") == subdomain]
+                return domain, targets
+            except Exception as e:
+                anlog.info(e)
+            del parts[0]
+        raise Exception(f"subdomain {subdomain} is invalid")
 
     # returns list of {'A': '1.1.1.1'} objects
     def get_record_ips(self, subdomain) -> List[Dict[str, str]]:
         result = []
-        recs = self.__get_records(subdomain)
+        _, recs = self.__get_records(subdomain)
         for rec in recs:
             if (kind := rec.get("type")) and (ip := rec.get("content")):
                 result.append({kind: ip})
@@ -66,8 +69,7 @@ class PorkbunProvider(Provider):
     def update_record_ip(self, subdomain: str, ip, rtype="A") -> bool:
         if not is_ip_record_valid(ip, rtype):
             return False
-        domain = ".".join(subdomain.split(".")[-2:])
-        recs = self.__get_records(subdomain)
+        domain, recs = self.__get_records(subdomain)
         name = "" if subdomain.count(".") <= 1 else subdomain.split(".", 1)[0]
         try:
             if recs:
@@ -91,3 +93,4 @@ class PorkbunProvider(Provider):
         except Exception as e:
             anlog.error(e)
         return False
+
