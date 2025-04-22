@@ -13,11 +13,8 @@ dependencies = [
   "flask",
   "arrow",
   "requests",
-  "tinydb",
   "cloudflare>=4.1.0", #==2.20.0",
   "bcrypt",
-  "peewee",
-  "psycopg2",
   "jsonschema",
   "pyyaml",
 ]
@@ -28,6 +25,10 @@ classifiers = [
   "Operating System :: OS Independent",
   "License :: OSI Approved :: BSD License",
 ]
+
+[project.optional-dependencies]
+tinydb = ["tinydb"]
+database = ["psycopg2", "peewee"]
 
 [project.scripts]
 anemoi = "anemoi.cli:cli"
