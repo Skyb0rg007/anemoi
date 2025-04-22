@@ -42,7 +42,7 @@ def home():
 def check_in():
     if request.method == "POST":
         if not request.is_json:
-            abort(400)
+            abort(400) # bad request
         data = dict(request.json)
     else:
         data = {
@@ -51,14 +51,14 @@ def check_in():
             "ip": request.args.get("ip"),
         }
     if not all(k in data for k in ("uuid", "secret")):
-        abort(400)
+        abort(400) # bad request
     uuid = data.get("uuid")
     secret = data.get("secret")
     manually_set_ip = data.get("ip")
     co = ClientOperator(current_app.config.get("anemoi.backend"))
     res = co.validate_secret(uuid, secret)
     if not res:  # no auth, exit
-        return "not changed", 200
+        return "invalid credentials", 401 # unauthenticated
     if client := co.backend.get_client(uuid=uuid):
         providers: Providers = current_app.config.get("anemoi.providers")
         provider = providers.get_provider(client.domain)
