@@ -42,24 +42,24 @@ class PorkbunProvider(Provider):
 
     # Returns the root domain corresponding to the given subdomain,
     # and all records associated with the subdomain
-    def __get_records(self, subdomain) -> Tuple[str, List[str]]:
+    def __get_records(self, subdomain) -> Tuple[str, str, List[str]]:
         parts = subdomain.split(".")
-        while len(parts) > 1:
-            domain = ".".join(parts)
+        for i in range(len(parts)):
+            domain = ".".join(parts[i:])
             try:
                 res = self._post(f"dns/retrieve/{domain}")
                 raw_records = res.get("records", [])
                 targets = [x for x in raw_records if x.get("name", "") == subdomain]
-                return domain, targets
+                sub = ".".join(parts[:i])
+                return sub, domain, targets
             except Exception as e:
                 anlog.info(e)
-            del parts[0]
         raise Exception(f"subdomain {subdomain} is invalid")
 
     # returns list of {'A': '1.1.1.1'} objects
     def get_record_ips(self, subdomain) -> List[Dict[str, str]]:
         result = []
-        _, recs = self.__get_records(subdomain)
+        _, _, recs = self.__get_records(subdomain)
         for rec in recs:
             if (kind := rec.get("type")) and (ip := rec.get("content")):
                 result.append({kind: ip})
@@ -69,8 +69,7 @@ class PorkbunProvider(Provider):
     def update_record_ip(self, subdomain: str, ip, rtype="A") -> bool:
         if not is_ip_record_valid(ip, rtype):
             return False
-        domain, recs = self.__get_records(subdomain)
-        name = "" if subdomain.count(".") <= 1 else subdomain.split(".", 1)[0]
+        name, domain, recs = self.__get_records(subdomain)
         try:
             if recs:
                 recs = [x for x in recs if x.get("type", "") == rtype]
